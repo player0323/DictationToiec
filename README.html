@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📢 Dictation + IPA · Luyện nghe chép chính tả</title>
+    <style>
+        /* ===== RESET & ROOT ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f5f7fa; --surface: #ffffff; --surface2: #f0f2f5;
+            --text: #1e293b; --text2: #475569; --border: #d1d5db;
+            --primary: #2563eb; --primary-hover: #1d4ed8;
+            --shadow: 0 8px 24px rgba(0,0,0,0.08); --radius: 12px;
+            --correct: #2e7d32; --correct-bg: #e8f5e9;
+            --incorrect: #c62828; --incorrect-bg: #ffebee;
+            --extra: #f57f17; --extra-bg: #fff8e1;
+            --missing: #1565c0; --missing-bg: #e3f2fd;
+            --transition: 0.25s ease;
+        }
+        .dark {
+            --bg: #0f172a; --surface: #1e293b; --surface2: #2d3a4f;
+            --text: #e2e8f0; --text2: #94a3b8; --border: #334155;
+            --shadow: 0 8px 24px rgba(0,0,0,0.4);
+            --correct-bg: #1b3a1f; --incorrect-bg: #3a1a1a;
+            --extra-bg: #3a2e0e; --missing-bg: #0d2847;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); transition: background var(--transition), color var(--transition); min-height: 100vh; padding: 16px; }
+        .app { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; background: var(--surface); padding: 12px 24px; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .logo { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .logo small { font-weight: 400; font-size: 0.85rem; color: var(--text2); }
+        .header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all var(--transition); }
+        .btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); }
+        .btn-success { background: var(--correct); color: #fff; border-color: var(--correct); }
+        .btn-success:hover { background: #236327; }
+        .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
+        .btn-icon { padding: 6px 10px; font-size: 1.1rem; }
+
+        .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) { .upload-grid { grid-template-columns: 1fr; } }
+        .upload-box { background: var(--surface); border: 2px dashed var(--border); border-radius: var(--radius); padding: 20px; transition: border-color var(--transition); }
+        .upload-box.dragover { border-color: var(--primary); background: var(--surface2); }
+        .upload-box .label { font-weight: 600; display: block; margin-bottom: 8px; font-size: 0.95rem; }
+        .upload-box input[type="file"] { display: block; width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem; cursor: pointer; }
+        .upload-box input[type="file"]:hover { border-color: var(--primary); }
+        .file-status { margin-top: 6px; font-size: 0.85rem; color: var(--text2); }
+        .file-status .name { font-weight: 500; color: var(--text); }
+
+        /* Progress bar upload AssemblyAI */
+        .upload-progress { margin-top: 8px; display: none; }
+        .upload-progress .progress-bar-wrap { background: var(--surface2); border-radius: 20px; height: 8px; overflow: hidden; }
+        .upload-progress .progress-bar-wrap .fill { height: 100%; background: var(--primary); border-radius: 20px; transition: width 0.3s ease; width: 0%; }
+        .upload-progress .status-text { font-size: 0.8rem; color: var(--text2); display: block; margin-top: 4px; }
+
+        .transcript-area { width: 100%; min-height: 110px; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 0.9rem; resize: vertical; font-family: inherit; margin-top: 8px; }
+        .transcript-area:focus { outline: 2px solid var(--primary); outline-offset: 0; }
+        .upload-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+        /* ===== WAVEFORM CONTAINER ===== */
+        .waveform-container {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 16px;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        .waveform-container canvas {
+            width: 100%;
+            height: 80px;
+            display: block;
+            border-radius: 6px;
+            background: var(--surface2);
+            cursor: pointer;
+        }
+        .waveform-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text2);
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .waveform-progress {
+            display: none;
+            margin-top: 10px;
+            text-align: center;
+            color: var(--text2);
+            font-size: 0.9rem;
+        }
+        .waveform-progress .progress-bar-wrap {
+            background: var(--surface2);
+            border-radius: 20px;
+            height: 10px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .waveform-progress .progress-bar-wrap .fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 20px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .waveform-progress .status-text {
+            display: block;
+            margin-top: 4px;
+        }
+
+        .player-section { background: var(--surface); border-radius: var(--radius); padding: 16px 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+        .player-controls .btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
+        .player-controls .speed-group { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+        .player-controls .speed-group select { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 0.85rem; }
+        .player-controls .repeat-group { display: flex; align-items: center; gap: 4px; }
+        .player-controls .repeat-group select { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 0.85rem; }
+        .sentence-counter { font-weight: 500; font-size: 0.95rem; min-width: 90px; }
+        .progress-text { font-size: 0.85rem; color: var(--text2); }
+
+        .dictation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 900px) { .dictation-grid { grid-template-columns: 1fr; } }
+        .dictation-input-area { background: var(--surface); border-radius: var(--radius); padding: 16px 20px; border: 1px solid var(--border); }
+        .dictation-input-area textarea { width: 100%; min-height: 100px; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 1rem; resize: vertical; font-family: inherit; }
+        .dictation-input-area textarea:focus { outline: 2px solid var(--primary); outline-offset: 0; }
+        .input-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+        .result-area {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            border: 1px solid var(--border);
+            min-height: 160px;
+            transition: opacity 0.2s ease;
+        }
+        .result-area.hidden-result {
+            opacity: 0;
+            pointer-events: none;
+            min-height: 0;
+            padding: 0 20px;
+            height: 0;
+            overflow: hidden;
+            border: none;
+        }
+        .result-area .result-line { margin-bottom: 8px; line-height: 1.6; }
+        .result-area .label { font-weight: 600; font-size: 0.85rem; color: var(--text2); display: block; margin-bottom: 2px; }
+        .result-area .transcript-ipa { color: var(--text2); font-size: 0.95rem; padding: 6px 0; border-top: 1px solid var(--border); margin-top: 8px; font-family: 'Segoe UI', 'Times New Roman', serif; }
+        .result-area .score { font-size: 1.2rem; font-weight: 700; margin: 4px 0; }
+        .result-area .original-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+        .result-area .original-line .speak-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0 4px; color: var(--primary); transition: color var(--transition); }
+        .result-area .original-line .speak-btn:hover { color: var(--primary-hover); }
+        .result-area .time-label { font-size: 0.8rem; color: var(--text2); font-weight: 400; display: block; margin-top: 2px; }
+
+        .token { display: inline; padding: 0 1px; border-radius: 3px; white-space: pre-wrap; word-break: break-word; }
+        .token.correct { background: var(--correct-bg); color: var(--correct); }
+        .token.incorrect { background: var(--incorrect-bg); color: var(--incorrect); text-decoration: underline wavy var(--incorrect); }
+        .token.extra { background: var(--extra-bg); color: var(--extra); text-decoration: line-through; }
+        .token.missing { background: var(--missing-bg); color: var(--missing); font-style: italic; }
+        .token.missing::after { content: ' (thiếu)'; font-size: 0.7rem; opacity: 0.7; }
+
+        .sentence-list { background: var(--surface); border-radius: var(--radius); padding: 12px 16px; border: 1px solid var(--border); max-height: 180px; overflow-y: auto; }
+        .sentence-list .s-item { display: inline-block; padding: 4px 12px; margin: 3px 4px 3px 0; border-radius: 20px; font-size: 0.8rem; cursor: pointer; border: 1px solid var(--border); transition: all var(--transition); background: var(--surface2); }
+        .sentence-list .s-item:hover { background: var(--primary); color: #fff; }
+        .sentence-list .s-item.done { border-color: var(--correct); background: var(--correct-bg); color: var(--correct); }
+        .sentence-list .s-item.fail { border-color: var(--incorrect); background: var(--incorrect-bg); color: var(--incorrect); }
+        .sentence-list .s-item.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+        .sentence-list .s-item.pending { opacity: 0.6; }
+        .s-item .time { color: var(--primary); font-weight: 600; margin-right: 6px; opacity: 0.8; }
+        .s-item .text { color: var(--text); }
+
+        .progress-bar-wrap { background: var(--surface2); border-radius: 20px; height: 8px; margin-top: 10px; overflow: hidden; }
+        .progress-bar-wrap .fill { height: 100%; background: var(--primary); border-radius: 20px; transition: width 0.4s ease; width: 0%; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 999; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: var(--surface); border-radius: var(--radius); padding: 28px 32px; max-width: 520px; width: 94%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 1px solid var(--border); }
+        .modal h2 { margin-bottom: 16px; font-size: 1.3rem; }
+        .modal .field { margin-bottom: 14px; }
+        .modal .field label { display: block; font-weight: 500; font-size: 0.9rem; margin-bottom: 4px; }
+        .modal .field input, .modal .field select { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 0.95rem; }
+        .modal .field input:focus, .modal .field select:focus { outline: 2px solid var(--primary); outline-offset: 0; }
+        .modal .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .modal .warning { font-size: 0.8rem; color: var(--text2); background: var(--extra-bg); padding: 8px 12px; border-radius: 6px; margin-top: 6px; }
+
+        .toast { position: fixed; bottom: 30px; right: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 1000; max-width: 420px; animation: slideUp 0.35s ease; border-left: 5px solid var(--primary); }
+        .toast.error { border-left-color: var(--incorrect); }
+        .toast.success { border-left-color: var(--correct); }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        @media (max-width: 600px) {
+            .header { flex-direction: column; align-items: stretch; gap: 8px; }
+            .header-actions { justify-content: flex-start; }
+            .player-controls { flex-direction: column; align-items: stretch; }
+            .player-controls .speed-group { margin-left: 0; }
+            .btn { font-size: 0.8rem; padding: 6px 12px; }
+            .modal { padding: 20px; }
+            .dictation-grid { grid-template-columns: 1fr; }
+        }
+        .hidden { display: none !important; }
+        .text-muted { color: var(--text2); font-size: 0.9rem; }
+        .w-full { width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="app" id="app">
+    <header class="header">
+        <div class="logo">📢 Dictation + IPA <small>· Nghe &amp; Chép chính tả</small></div>
+        <div class="header-actions">
+            <button class="btn btn-sm" id="btnSettings">⚙️ Settings</button>
+            <button class="btn btn-sm" id="btnTheme">🌙 Dark</button>
+            <button class="btn btn-sm" id="btnExport">📥 Export</button>
+        </div>
+    </header>
+
+    <section class="upload-grid">
+        <div class="upload-box" id="audioDrop">
+            <span class="label">🎵 Nạp File Audio:</span>
+            <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,.ogg" />
+            <div class="file-status" id="audioStatus"></div>
+            <div class="upload-progress" id="uploadProgress">
+                <div class="progress-bar-wrap">
+                    <div class="fill" id="uploadProgressFill" style="width:0%;"></div>
+                </div>
+                <span class="status-text" id="uploadStatusText">Đang chuẩn bị...</span>
+            </div>
+        </div>
+        <div class="upload-box" id="transcriptDrop">
+            <span class="label">📝 Nạp File Transcript (.txt hoặc .json):</span>
+            <input type="file" id="transcriptFile" accept=".txt,.json" />
+            <div class="file-status" id="transcriptStatus"></div>
+            <textarea class="transcript-area" id="transcriptText" placeholder="Nội dung chữ gốc sẽ hiển thị tại đây..."></textarea>
+            <div class="upload-actions">
+                <button class="btn btn-sm btn-primary" id="btnAutoTranscribe">🤖 Tạo Transcript tự động</button>
+                <button class="btn btn-sm btn-success" id="btnSaveTranscript">💾 Lưu Transcript (.txt)</button>
+            </div>
+        </div>
+    </section>
+
+    <div class="waveform-container" id="waveformContainer">
+        <div class="waveform-progress" id="waveformProgress">
+            <div class="progress-bar-wrap">
+                <div class="fill" id="waveformProgressFill" style="width:0%;"></div>
+            </div>
+            <span class="status-text" id="waveformProgressText">Đang tải audio...</span>
+        </div>
+        <canvas id="waveformCanvas" height="80"></canvas>
+        <div class="waveform-info">
+            <span id="waveformDuration">⏱ 0:00</span>
+            <span id="waveformSentences">📄 0 câu âm thanh</span>
+            <span id="waveformStatus">🔇 Chưa tải audio</span>
+        </div>
+    </div>
+
+    <section class="player-section">
+        <div class="player-controls">
+            <div class="btn-group">
+                <button class="btn btn-icon" id="btnPrev" title="⏪ Câu trước (←)">⏪</button>
+                <button class="btn btn-icon" id="btnPlay" title="▶️ Play/Pause (Ctrl+Space)">▶️</button>
+                <button class="btn btn-icon" id="btnStop" title="⏹ Dừng">⏹</button>
+                <button class="btn btn-icon" id="btnNext" title="⏩ Câu tiếp (→)">⏩</button>
+                <button class="btn btn-icon" id="btnRepeat" title="🔁 Lặp lại (Ctrl)">🔁</button>
+            </div>
+            <span class="sentence-counter" id="sentenceCounter">Câu 0 / 0</span>
+            <div class="repeat-group">
+                <span style="font-size:0.8rem;">Lặp</span>
+                <select id="repeatCount">
+                    <option value="1">1 lần</option>
+                    <option value="2">2 lần</option>
+                    <option value="3">3 lần</option>
+                    <option value="0">∞</option>
+                </select>
+            </div>
+            <div class="speed-group">
+                <span style="font-size:0.8rem;">Tốc độ</span>
+                <select id="speedSelect">
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2.0">2.0x</option>
+                </select>
+            </div>
+            <span class="progress-text" id="progressText">0%</span>
+        </div>
+    </section>
+
+    <section class="dictation-grid">
+        <div class="dictation-input-area">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+                <span style="font-weight:600;">✏️ Gõ câu bạn nghe</span>
+                <span style="font-size:0.8rem;color:var(--text2);" id="inputHint">(Enter kiểm tra, Ctrl lặp lại)</span>
+            </div>
+            <textarea id="userInput" placeholder="Nhập nội dung nghe được..." rows="3"></textarea>
+            <div class="input-actions">
+                <button class="btn btn-primary" id="btnCheck">✅ Kiểm tra</button>
+                <button class="btn btn-outline" id="btnHint">💡 Gợi ý</button>
+                <button class="btn btn-outline" id="btnNextSentence">🚀 Câu tiếp</button>
+                <button class="btn btn-outline" id="btnShowAnswer">👁 Hiện đáp án</button>
+            </div>
+        </div>
+        <div class="result-area hidden-result" id="resultArea">
+            <div class="result-line" id="resultOriginalLine">
+                <span class="label">📖 Gốc</span>
+                <div class="original-line">
+                    <span id="resultOriginal" style="font-weight:500;">—</span>
+                    <button class="speak-btn" id="speakBtn" title="Phát âm câu này">🔊</button>
+                </div>
+                <span class="time-label" id="resultTime">⏱️ —</span>
+            </div>
+            <div class="result-line" id="resultUserLine">
+                <span class="label">✍️ Bạn</span>
+                <div id="resultUser" style="font-weight:500;">—</div>
+            </div>
+            <div class="result-line" id="resultCompareLine">
+                <span class="label">🔍 So sánh</span>
+                <div id="resultComparison">—</div>
+            </div>
+            <div class="result-line" id="resultScoreLine">
+                <span class="score" id="resultScore">✅ Điểm: —</span>
+            </div>
+            <div class="transcript-ipa" id="resultIPA">🔊 IPA: —</div>
+        </div>
+    </section>
+
+    <div class="sentence-list" id="sentenceList">
+        <span class="text-muted">Chưa có câu nào. Hãy nạp audio và transcript.</span>
+    </div>
+    <div class="progress-bar-wrap">
+        <div class="fill" id="progressFill" style="width:0%;"></div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text2);padding:4px 0;flex-wrap:wrap;">
+        <span>💾 Dữ liệu lưu cục bộ (IndexedDB)</span>
+        <span id="sessionInfo">📊 Hệ thống sẵn sàng làm việc.</span>
+    </div>
+</div>
+
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+        <h2>⚙️ Cài đặt</h2>
+        <div class="field">
+            <label>Nhà cung cấp API</label>
+            <select id="apiProvider">
+                <option value="assemblyai">AssemblyAI</option>
+                <option value="openai">OpenAI Whisper</option>
+                <option value="deepgram">Deepgram</option>
+                <option value="google">Google Cloud STT</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>API Key</label>
+            <input type="password" id="apiKeyInput" placeholder="Nhập API key của bạn..." />
+            <div class="warning">⚠️ Key lưu cục bộ trong localStorage. Bạn tự chịu trách nhiệm về phí sử dụng API.</div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" id="modalClose">Đóng</button>
+            <button class="btn btn-primary" id="modalSave">💾 Lưu</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // =====================================================================
+    //  MODULE: STORAGE
+    // =====================================================================
+    const Storage = (() => {
+        const DB_NAME = 'DictationDB'; const DB_VERSION = 2; let db = null;
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = (e) => {
+                    const d = e.target.result;
+                    if (!d.objectStoreNames.contains('audios')) d.createObjectStore('audios', { keyPath: 'id' });
+                    if (!d.objectStoreNames.contains('sessions')) d.createObjectStore('sessions', { keyPath: 'id' });
+                };
+                req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+        function ensureDB() { return db ? Promise.resolve(db) : openDB(); }
+        return {
+            put: (storeName, data) => ensureDB().then(d => new Promise((resolve, reject) => {
+                const tx = d.transaction(storeName, 'readwrite'); tx.objectStore(storeName).put(data);
+                tx.oncomplete = () => resolve(data); tx.onerror = (e) => reject(e.target.error);
+            })),
+            loadSettings: () => {
+                const raw = localStorage.getItem('dictation_settings');
+                return raw ? JSON.parse(raw) : { theme: 'light', apiProvider: 'assemblyai', apiKey: '', speed: 1.0, repeatCount: 1 };
+            },
+            saveSettings: (s) => localStorage.setItem('dictation_settings', JSON.stringify(s))
+        };
+    })();
+
+    // =====================================================================
+    //  MODULE: TOAST & IPA
+    // =====================================================================
+    function showToast(msg, type = 'info') {
+        const old = document.querySelector('.toast'); if (old) old.remove();
+        const el = document.createElement('div'); el.className = `toast ${type}`; el.textContent = msg;
+        document.body.appendChild(el); setTimeout(() => el.remove(), 3000);
+    }
+
+    const IPA = (() => {
+        const cache = new Map();
+        async function getIPA(word) {
+            if (cache.has(word)) return cache.get(word);
+            try {
+                const resp = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                return data?.[0]?.phonetics?.find(p => p.text && p.text.includes('/'))?.text || null;
+            } catch { return null; }
+        }
+        return {
+            getSentenceIPA: async (sentence) => {
+                const tokens = sentence.match(/[\w']+|[^\w\s]/g) || []; const parts = [];
+                for (const t of tokens) { if (t.match(/^[\w']+$/)) { const ipa = await getIPA(t); parts.push(ipa || `[${t}]`); } else parts.push(t); }
+                return parts.join(' ');
+            }
+        };
+    })();
+
+    // =====================================================================
+    //  MODULE: AUDIO PROCESSOR
+    // =====================================================================
+    const AudioProcessor = (() => {
+        let audioContext = null; let audioBuffer = null;
+        function initContext() { if (!audioContext) audioContext = new(window.AudioContext || window.webkitAudioContext)(); return audioContext; }
+        return {
+            initContext,
+            decodeAudioData: (ab) => {
+                return new Promise((resolve, reject) => {
+                    const ctx = initContext();
+                    ctx.decodeAudioData(ab, (buffer) => {
+                        audioBuffer = buffer;
+                        resolve(buffer);
+                    }, reject);
+                });
+            },
+            getWaveformData: (buffer, samples = 800) => {
+                const data = buffer.getChannelData(0); const step = Math.max(1, Math.floor(data.length / samples));
+                const res = []; for (let i = 0; i < data.length; i += step) res.push(data[i]); return res;
+            },
+            detectSilence: (buffer, threshold = 0.015, minSilence = 0.25) => {
+                const data = buffer.getChannelData(0); const rate = buffer.sampleRate; const minSilenceSamples = Math.floor(minSilence * rate);
+                const segments = []; let start = 0; let silenceStart = -1; let inSilence = false;
+                for (let i = 0; i < data.length; i++) {
+                    const val = Math.abs(data[i]); const isSilent = val < threshold;
+                    if (isSilent && !inSilence) { inSilence = true; silenceStart = i; }
+                    else if (!isSilent && inSilence) {
+                        if ((i - silenceStart) >= minSilenceSamples) { if ((silenceStart - start) > rate * 0.2) segments.push({ start: start / rate, end: silenceStart / rate }); start = i; }
+                        inSilence = false;
+                    }
+                }
+                if (start < data.length) segments.push({ start: start / rate, end: data.length / rate });
+                return segments;
+            },
+            getAudioBuffer: () => audioBuffer
+        };
+    })();
+
+    // =====================================================================
+    //  MODULE: PLAYER (có cut -1s)
+    // =====================================================================
+    const Player = (() => {
+        let currentSegment = 0; let segments = []; let isPlaying = false; let currentSource = null;
+        let speed = 1.0; let repeatCount = 1; let repeatRemaining = 0;
+        let onPlayCallback = null; let gainNode = null; let playTimeoutId = null;
+        const PRE_START = 1.0;
+
+        function play() {
+            if (!segments.length) return;
+            const ctx = AudioProcessor.initContext(); if (ctx.state === 'suspended') ctx.resume();
+            if (!gainNode) { gainNode = ctx.createGain(); gainNode.connect(ctx.destination); }
+
+            const seg = segments[currentSegment]; if (!seg) return;
+            const buffer = AudioProcessor.getAudioBuffer(); if (!buffer) return;
+
+            stopTimeout();
+            if (currentSource) { try { currentSource.stop(); } catch {} currentSource = null; }
+
+            currentSource = ctx.createBufferSource();
+            currentSource.buffer = buffer;
+            currentSource.playbackRate.value = speed;
+            currentSource.connect(gainNode);
+
+            const start = Math.max(0, seg.start - PRE_START);
+            const duration = Math.max(0.1, seg.end - start);
+            currentSource.start(0, start, duration);
+            isPlaying = true;
+
+            if (onPlayCallback) onPlayCallback(currentSegment);
+            updateUI();
+
+            const realTimeMs = (duration / speed) * 1000;
+            playTimeoutId = setTimeout(() => {
+                if (!isPlaying) return;
+                if (repeatRemaining > 0) {
+                    if (repeatRemaining !== Infinity) repeatRemaining--;
+                    play();
+                } else {
+                    stop();
+                }
+            }, realTimeMs);
+        }
+
+        function stop() { stopTimeout(); if (currentSource) { try { currentSource.stop(); } catch {} currentSource = null; } isPlaying = false; updateUI(); }
+        function stopTimeout() { if (playTimeoutId) { clearTimeout(playTimeoutId); playTimeoutId = null; } }
+        function updateUI() { document.dispatchEvent(new CustomEvent('player-update', { detail: { currentSegment, totalSegments: segments.length, isPlaying } })); }
+        function initAndPlay() { repeatRemaining = repeatCount === 0 ? Infinity : repeatCount - 1; play(); }
+
+        return {
+            setSegments: (list) => { segments = list; updateUI(); },
+            setCurrentSegment: (idx) => { if (idx >= 0 && idx < segments.length) { currentSegment = idx; stop(); updateUI(); } },
+            play: initAndPlay, stop,
+            next: () => { if (!segments.length) return; stop(); currentSegment = Math.min(currentSegment + 1, segments.length - 1); initAndPlay(); },
+            prev: () => { if (!segments.length) return; stop(); currentSegment = Math.max(currentSegment - 1, 0); initAndPlay(); },
+            togglePlay: () => isPlaying ? stop() : initAndPlay(),
+            setSpeed: (v) => { speed = v; }, setRepeatCount: (v) => { repeatCount = v; },
+            onPlay: (cb) => onPlayCallback = cb,
+            getCurrentSegment: () => currentSegment,
+            getSegments: () => segments,
+            isPlaying: () => isPlaying,
+            // Thêm hàm để lấy callback khi thay đổi segment
+            onSegmentChange: (cb) => { onPlayCallback = cb; }
+        };
+    })();
+
+    // =====================================================================
+    //  MODULE: TEXT COMPARISON
+    // =====================================================================
+    const TextCompare = {
+        tokenize: (t) => t.match(/\S+/g) || [],
+        cleanToken: (t) => t.replace(/^[^\w']+|[^\w']+$/g, '').toLowerCase(),
+        compare(expected, actual) {
+            const exp = this.tokenize(expected); const act = this.tokenize(actual);
+            const aligned = exp.map((word, idx) => {
+                const uWord = act[idx]; const isMatch = uWord && this.cleanToken(word) === this.cleanToken(uWord);
+                return { expected: word, actual: uWord || null, status: isMatch ? 'correct' : (uWord ? 'incorrect' : 'missing') };
+            });
+            for (let i = exp.length; i < act.length; i++) {
+                aligned.push({ expected: null, actual: act[i], status: 'extra' });
+            }
+            return { aligned, accuracy: exp.length ? Math.round((aligned.filter(t => t.status === 'correct').length / exp.length) * 100) : 0 };
+        },
+        renderTokens(aligned) {
+            return aligned.map(item => {
+                let text = item.expected || item.actual || '';
+                return `<span class="token ${item.status}">${text}</span>`;
+            }).join(' ');
+        }
+    };
+
+    // =====================================================================
+    //  MODULE: AUTO-TRANSCRIBE (có callback progress)
+    // =====================================================================
+    const AutoTranscribe = {
+        async transcribe(audioBlob, provider, apiKey, onProgress) {
+            if (provider === 'assemblyai') {
+                onProgress && onProgress(10, 'Đang upload file...');
+                const uploadResp = await fetch('https://api.assemblyai.com/v2/upload', {
+                    method: 'POST', headers: { 'Authorization': apiKey }, body: audioBlob
+                });
+                if (!uploadResp.ok) {
+                    const err = await uploadResp.text();
+                    throw new Error(`Upload thất bại (${uploadResp.status}): ${err}`);
+                }
+                const uploadData = await uploadResp.json();
+                onProgress && onProgress(40, 'Upload thành công, đang gửi yêu cầu...');
+
+                const submitResp = await fetch('https://api.assemblyai.com/v2/transcript', {
+                    method: 'POST',
+                    headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        audio_url: uploadData.upload_url,
+                        punctuate: true,
+                        format_text: true
+                    })
+                });
+                if (!submitResp.ok) {
+                    const err = await submitResp.text();
+                    throw new Error(`Submit thất bại (${submitResp.status}): ${err}`);
+                }
+                const submitData = await submitResp.json();
+                onProgress && onProgress(50, 'Đang xử lý transcript...');
+
+                let status = 'processing'; let result = null;
+                let pollCount = 0;
+                while (status === 'processing' || status === 'queued') {
+                    await new Promise(r => setTimeout(r, 2000));
+                    pollCount++;
+                    const progress = Math.min(50 + pollCount * 5, 90);
+                    onProgress && onProgress(progress, `Đang xử lý... (${pollCount * 2}s)`);
+
+                    const poll = await fetch(`https://api.assemblyai.com/v2/transcript/${submitData.id}`, { headers: { 'Authorization': apiKey } });
+                    if (!poll.ok) {
+                        const err = await poll.text();
+                        throw new Error(`Poll thất bại (${poll.status}): ${err}`);
+                    }
+                    result = await poll.json();
+                    status = result.status;
+                    if (status === 'error') throw new Error(`AssemblyAI lỗi: ${result.error}`);
+                }
+                onProgress && onProgress(95, 'Đã có transcript, đang lấy sentences...');
+
+                const sentencesResp = await fetch(`https://api.assemblyai.com/v2/transcript/${submitData.id}/sentences`, {
+                    headers: { 'Authorization': apiKey }
+                });
+                if (!sentencesResp.ok) {
+                    const err = await sentencesResp.text();
+                    throw new Error(`Lấy sentences thất bại (${sentencesResp.status}): ${err}`);
+                }
+                const sentencesData = await sentencesResp.json();
+                onProgress && onProgress(100, 'Hoàn tất!');
+
+                if (sentencesData.sentences && sentencesData.sentences.length > 0) {
+                    return {
+                        type: 'aligned',
+                        text: result.text,
+                        segments: sentencesData.sentences.map(s => ({
+                            start: s.start / 1000,
+                            end: s.end / 1000,
+                            transcript: s.text
+                        }))
+                    };
+                }
+                return { type: 'raw', text: result.text || '' };
+            }
+
+            // Các provider khác (bỏ qua cho ngắn)
+            const formData = new FormData(); formData.append('file', audioBlob, 'audio.mp3');
+            if (provider === 'openai') {
+                formData.append('model', 'whisper-1'); formData.append('response_format', 'text');
+                const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}` }, body: formData });
+                if (!resp.ok) throw new Error(`OpenAI error ${resp.status}: ${await resp.text()}`);
+                return { type: 'raw', text: (await resp.text()).trim() };
+            }
+            else if (provider === 'deepgram') {
+                const resp = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true', {
+                    method: 'POST', headers: { 'Authorization': `Token ${apiKey}`, 'Content-Type': 'audio/mp3' }, body: audioBlob
+                });
+                if (!resp.ok) throw new Error(`Deepgram error ${resp.status}: ${await resp.text()}`);
+                const data = await resp.json();
+                return { type: 'raw', text: data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '' };
+            }
+            else if (provider === 'google') {
+                const reader = new FileReader();
+                const base64 = await new Promise((resolve) => {
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.readAsDataURL(audioBlob);
+                });
+                const payload = {
+                    config: { encoding: 'MP3', sampleRateHertz: 16000, languageCode: 'en-US' }, audio: { content: base64 }
+                };
+                const resp = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                if (!resp.ok) throw new Error(`Google error ${resp.status}: ${await resp.text()}`);
+                const data = await resp.json();
+                return { type: 'raw', text: (data.results || []).map(r => r.alternatives?.[0]?.transcript || '').join(' ') };
+            }
+            throw new Error('Provider không được hỗ trợ.');
+        },
+        formatTranscript(text) {
+            let formatted = text.replace(/([.!?])\s*/g, '$1 ').trim();
+            formatted = formatted.replace(/(^|\.\s+)([a-z])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+            if (!/[.!?]$/.test(formatted)) formatted += '.';
+            return formatted;
+        }
+    };
+
+    // =====================================================================
+    //  MAIN APPLICATION
+    // =====================================================================
+    (function() {
+        'use strict';
+        const $ = (id) => document.getElementById(id);
+        let state = {
+            audioFile: null,
+            audioBuffer: null,
+            transcriptText: '',
+            finalSegments: [],
+            currentSentenceIndex: 0,
+            settings: Storage.loadSettings(),
+            isAutoTranscribing: false
+        };
+
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            const cs = Math.floor((sec % 1) * 100);
+            return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+        }
+
+        function parseTimestampLine(line) {
+            const pattern = /^\[(\d{2}):(\d{2})\.(\d{2})\]\s*(.*)$/;
+            const match = line.match(pattern);
+            if (match) {
+                const minutes = parseInt(match[1]);
+                const seconds = parseInt(match[2]);
+                const centiseconds = parseInt(match[3]);
+                const start = minutes * 60 + seconds + centiseconds / 100;
+                const text = match[4].trim();
+                return { start, text };
+            }
+            return null;
+        }
+
+        function updateUploadProgress(percent, statusText) {
+            const progressEl = document.getElementById('uploadProgress');
+            const fillEl = document.getElementById('uploadProgressFill');
+            const textEl = document.getElementById('uploadStatusText');
+            progressEl.style.display = 'block';
+            fillEl.style.width = percent + '%';
+            textEl.textContent = statusText || `${percent}%`;
+            if (percent >= 100) {
+                setTimeout(() => {
+                    progressEl.style.display = 'none';
+                    fillEl.style.width = '0%';
+                }, 2000);
+            }
+        }
+
+        function updateWaveformProgress(percent, statusText) {
+            const container = document.getElementById('waveformProgress');
+            const fill = document.getElementById('waveformProgressFill');
+            const text = document.getElementById('waveformProgressText');
+            container.style.display = 'block';
+            fill.style.width = percent + '%';
+            text.textContent = statusText || `${percent}%`;
+            if (percent >= 100) {
+                setTimeout(() => {
+                    container.style.display = 'none';
+                    fill.style.width = '0%';
+                }, 500);
+            }
+        }
+
+        // ===== UI HELPER: Clear input & hide result =====
+        function clearInputAndHideResult() {
+            const input = document.getElementById('userInput');
+            const result = document.getElementById('resultArea');
+            input.value = '';
+            result.className = 'result-area hidden-result';
+        }
+
+        function hideResultOnly() {
+            const result = document.getElementById('resultArea');
+            result.className = 'result-area hidden-result';
+        }
+
+        function init() {
+            $('speedSelect').value = state.settings.speed; Player.setSpeed(parseFloat(state.settings.speed));
+            $('repeatCount').value = state.settings.repeatCount; Player.setRepeatCount(parseInt(state.settings.repeatCount));
+            $('apiProvider').value = state.settings.apiProvider || 'assemblyai';
+            $('apiKeyInput').value = state.settings.apiKey || '';
+            setupEvents();
+        }
+
+        function setupEvents() {
+            // ---- AUDIO UPLOAD ----
+            $('audioFile').addEventListener('change', async (e) => {
+                if (!e.target.files.length) return;
+                state.audioFile = e.target.files[0];
+                $('audioStatus').innerHTML = `📁 <span class="name">${state.audioFile.name}</span> (${(state.audioFile.size/1024/1024).toFixed(2)} MB)`;
+                updateWaveformProgress(10, 'Đang đọc file...');
+                try {
+                    const ab = await state.audioFile.arrayBuffer();
+                    updateWaveformProgress(30, 'Đang giải mã audio...');
+                    state.audioBuffer = await AudioProcessor.decodeAudioData(ab);
+                    updateWaveformProgress(100, 'Hoàn tất!');
+                    $('waveformDuration').textContent = `⏱ ${Math.floor(state.audioBuffer.duration/60)}:${Math.floor(state.audioBuffer.duration%60).toString().padStart(2,'0')}`;
+                    $('waveformStatus').textContent = '✅ Đã tải xong Audio.';
+                    drawWaveform(state.audioBuffer);
+                    showToast('🎵 Đã nạp file Audio xong!', 'success');
+                } catch (err) {
+                    updateWaveformProgress(0, 'Lỗi!');
+                    showToast('❌ Lỗi giải mã audio: ' + err.message, 'error');
+                }
+            });
+
+            // ---- TRANSCRIPT UPLOAD ----
+            $('transcriptFile').addEventListener('change', (e) => {
+                if (!e.target.files.length) return;
+                const file = e.target.files[0];
+                $('transcriptStatus').innerHTML = `📁 <span class="name">${file.name}</span> (${(file.size/1024).toFixed(1)} KB)`;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const content = evt.target.result;
+                    try {
+                        const data = JSON.parse(content);
+                        if (data.segments && Array.isArray(data.segments) && data.segments.length > 0) {
+                            state.finalSegments = data.segments.map(s => ({
+                                ...s,
+                                status: s.status || 'pending',
+                                userInput: s.userInput || '',
+                                ipa: s.ipa || ''
+                            }));
+                            state.transcriptText = data.text || '';
+                            $('transcriptText').value = state.transcriptText;
+                            if (state.audioBuffer) drawWaveform(state.audioBuffer, state.finalSegments);
+                            Player.setSegments(state.finalSegments);
+                            updateUIList();
+                            showToast(`📄 Đã tải ${state.finalSegments.length} câu từ JSON!`, 'success');
+                            return;
+                        }
+                    } catch (e) {}
+                    const lines = content.split('\n').filter(line => line.trim() !== '');
+                    const segments = [];
+                    let fullText = '';
+                    for (const line of lines) {
+                        const parsed = parseTimestampLine(line);
+                        if (parsed) {
+                            const { start, text } = parsed;
+                            if (segments.length === 0) {
+                                segments.push({ start, end: start + 1, transcript: text, status: 'pending', userInput: '', ipa: '' });
+                            } else {
+                                segments[segments.length - 1].end = start;
+                                segments.push({ start, end: start + 1, transcript: text, status: 'pending', userInput: '', ipa: '' });
+                            }
+                            fullText += text + ' ';
+                        } else {
+                            fullText += line + ' ';
+                        }
+                    }
+                    if (segments.length > 0) {
+                        const last = segments[segments.length - 1];
+                        if (state.audioBuffer) {
+                            last.end = Math.min(last.start + 3, state.audioBuffer.duration);
+                        } else {
+                            last.end = last.start + 3;
+                        }
+                        state.finalSegments = segments;
+                        state.transcriptText = fullText.trim();
+                        $('transcriptText').value = state.transcriptText;
+                        if (state.audioBuffer) drawWaveform(state.audioBuffer, state.finalSegments);
+                        Player.setSegments(state.finalSegments);
+                        updateUIList();
+                        showToast(`📄 Đã tải ${state.finalSegments.length} câu từ file text!`, 'success');
+                    } else {
+                        $('transcriptText').value = content;
+                        state.transcriptText = content;
+                        showToast('📝 Đã nạp file text (không có mốc thời gian).', 'info');
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            // ---- AUTO TRANSCRIBE ----
+            $('btnAutoTranscribe').addEventListener('click', async () => {
+                if (state.isAutoTranscribing) return;
+                if (!state.audioFile) { showToast('⚠️ Vui lòng nạp file Audio trước.', 'error'); return; }
+                if (!state.settings.apiKey) { $('settingsModal').classList.add('open'); showToast('⚠️ Vui lòng cấu hình API Key.', 'error'); return; }
+
+                state.isAutoTranscribing = true;
+                $('btnAutoTranscribe').textContent = '⏳ Đang xử lý...';
+                $('btnAutoTranscribe').disabled = true;
+
+                try {
+                    const res = await AutoTranscribe.transcribe(
+                        state.audioFile,
+                        state.settings.apiProvider,
+                        state.settings.apiKey,
+                        updateUploadProgress
+                    );
+
+                    if (res.type === 'aligned') {
+                        state.finalSegments = res.segments.map(s => ({ ...s, status: 'pending', userInput: '', ipa: '' }));
+                        state.transcriptText = res.text;
+                        $('transcriptText').value = res.text;
+                        Player.setSegments(state.finalSegments);
+                        drawWaveform(state.audioBuffer, state.finalSegments);
+                        updateUIList();
+                        $('waveformSentences').textContent = `📄 Đã khớp thời gian: ${state.finalSegments.length} câu!`;
+                        showToast(`🤖 Hoàn tất! Nhận ${state.finalSegments.length} câu có mốc thời gian!`, 'success');
+                    } else {
+                        const formatted = AutoTranscribe.formatTranscript(res.text);
+                        $('transcriptText').value = formatted;
+                        state.transcriptText = formatted;
+                        const segments = AudioProcessor.detectSilence(state.audioBuffer, 0.015, 0.25);
+                        const sentences = formatted.split(/(?<=[.!?])\s+/).filter(s => s.length);
+                        state.finalSegments = segments.map((seg, idx) => ({
+                            ...seg,
+                            transcript: sentences[idx] || `Đoạn ${idx+1}`,
+                            status: 'pending',
+                            userInput: '',
+                            ipa: ''
+                        }));
+                        Player.setSegments(state.finalSegments);
+                        drawWaveform(state.audioBuffer, state.finalSegments);
+                        updateUIList();
+                        $('waveformSentences').textContent = `📄 ${state.finalSegments.length} câu (cắt bằng khoảng lặng)`;
+                        showToast('🤖 Đã tạo transcript và cắt câu bằng khoảng lặng.', 'info');
+                    }
+                } catch (err) {
+                    showToast(`❌ Lỗi: ${err.message}`, 'error');
+                    console.error('Chi tiết lỗi:', err);
+                } finally {
+                    state.isAutoTranscribing = false;
+                    $('btnAutoTranscribe').textContent = '🤖 Tạo Transcript tự động';
+                    $('btnAutoTranscribe').disabled = false;
+                }
+            });
+
+            // ---- LƯU TRANSCRIPT ----
+            $('btnSaveTranscript').addEventListener('click', () => {
+                let textContent = '';
+                if (state.finalSegments && state.finalSegments.length > 0) {
+                    textContent = state.finalSegments.map(seg => {
+                        const timeStr = formatTime(seg.start);
+                        return `[${timeStr}] ${seg.transcript}`;
+                    }).join('\n');
+                } else {
+                    textContent = $('transcriptText').value.trim();
+                }
+                if (!textContent) { showToast('⚠️ Không có nội dung để lưu.', 'error'); return; }
+                const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `Transcript_${state.audioFile ? state.audioFile.name.split('.')[0] : 'Dictation'}.txt`;
+                link.click();
+                showToast('💾 Đã lưu file Transcript!', 'success');
+            });
+
+            // ---- PLAYER ----
+            $('btnPlay').addEventListener('click', () => {
+                hideResultOnly(); // Ẩn result, giữ input
+                Player.togglePlay();
+            });
+            $('btnStop').addEventListener('click', () => Player.stop());
+            $('btnPrev').addEventListener('click', () => {
+                clearInputAndHideResult(); // Xóa input và ẩn result
+                Player.prev();
+            });
+            $('btnNext').addEventListener('click', () => {
+                clearInputAndHideResult();
+                Player.next();
+            });
+            $('btnRepeat').addEventListener('click', () => {
+                hideResultOnly(); // Ẩn result, giữ input
+                Player.play();
+            });
+
+            $('speedSelect').addEventListener('change', (e) => Player.setSpeed(parseFloat(e.target.value)));
+            $('repeatCount').addEventListener('change', (e) => Player.setRepeatCount(parseInt(e.target.value)));
+
+            // ---- DICTATION ----
+            $('btnCheck').addEventListener('click', handleCheck);
+            $('btnHint').addEventListener('click', handleHint);
+            $('btnNextSentence').addEventListener('click', () => {
+                clearInputAndHideResult();
+                Player.next();
+            });
+            $('btnShowAnswer').addEventListener('click', () => {
+                const seg = state.finalSegments[state.currentSentenceIndex];
+                if (seg) { $('userInput').value = seg.transcript; handleCheck(); }
+            });
+
+            // ---- SPEAK ----
+            $('speakBtn').addEventListener('click', () => {
+                const text = $('resultOriginal').textContent;
+                if (text && text !== '—') speakText(text);
+            });
+
+            // ---- SETTINGS ----
+            $('btnSettings').addEventListener('click', () => $('settingsModal').classList.add('open'));
+            $('modalClose').addEventListener('click', () => $('settingsModal').classList.remove('open'));
+            $('modalSave').addEventListener('click', () => {
+                state.settings.apiProvider = $('apiProvider').value;
+                state.settings.apiKey = $('apiKeyInput').value.trim();
+                Storage.saveSettings(state.settings);
+                $('settingsModal').classList.remove('open');
+                showToast('✅ Đã lưu cài đặt.', 'success');
+            });
+
+            // ---- THEME ----
+            $('btnTheme').addEventListener('click', () => {
+                document.body.classList.toggle('dark');
+                $('btnTheme').textContent = document.body.classList.contains('dark') ? '☀️ Light' : '🌙 Dark';
+            });
+
+            // ---- EXPORT ----
+            $('btnExport').addEventListener('click', handleExport);
+
+            // ---- KEYBOARD ----
+            document.addEventListener('keydown', (e) => {
+                const target = e.target;
+                const isTextarea = target.tagName === 'TEXTAREA' || target.tagName === 'INPUT';
+
+                if (e.ctrlKey && e.key === ' ') {
+                    e.preventDefault();
+                    hideResultOnly();
+                    Player.togglePlay();
+                    return;
+                }
+
+                if (e.key === 'Control') {
+                    e.preventDefault();
+                    hideResultOnly();
+                    Player.play();
+                    return;
+                }
+
+                if (!isTextarea) {
+                    switch (e.key) {
+                        case 'ArrowRight':
+                            e.preventDefault();
+                            clearInputAndHideResult();
+                            Player.next();
+                            break;
+                        case 'ArrowLeft':
+                            e.preventDefault();
+                            clearInputAndHideResult();
+                            Player.prev();
+                            break;
+                    }
+                }
+
+                if (isTextarea && e.key === 'Enter' && target.id === 'userInput') {
+                    e.preventDefault();
+                    handleCheck();
+                    return;
+                }
+            });
+
+            // ---- PLAYER UPDATE ----
+            document.addEventListener('player-update', (e) => {
+                // Khi player thay đổi segment (do play kết thúc, next, prev, hoặc click item)
+                // Nếu không phải do play tự động thì đã xử lý từ các nút, nhưng vẫn đảm bảo.
+                state.currentSentenceIndex = e.detail.currentSegment;
+                $('btnPlay').textContent = e.detail.isPlaying ? '⏸️' : '▶️';
+                updateActiveSentenceItem();
+                const segs = state.finalSegments;
+                const done = segs.filter(s => s.status === 'done' || s.status === 'fail').length;
+                const pct = segs.length ? Math.round((done / segs.length) * 100) : 0;
+                $('progressFill').style.width = pct + '%';
+                $('progressText').textContent = `${pct}% (${done}/${segs.length})`;
+            });
+
+            // ---- DRAG AND DROP ----
+            setupDragAndDrop('audioDrop', (file) => {
+                const dt = new DataTransfer(); dt.items.add(file);
+                $('audioFile').files = dt.files;
+                $('audioFile').dispatchEvent(new Event('change'));
+            });
+            setupDragAndDrop('transcriptDrop', (file) => {
+                const dt = new DataTransfer(); dt.items.add(file);
+                $('transcriptFile').files = dt.files;
+                $('transcriptFile').dispatchEvent(new Event('change'));
+            });
+        }
+
+        function setupDragAndDrop(boxId, callback) {
+            const box = $(boxId);
+            box.addEventListener('dragover', (e) => { e.preventDefault(); box.classList.add('dragover'); });
+            box.addEventListener('dragleave', () => box.classList.remove('dragover'));
+            box.addEventListener('drop', (e) => { e.preventDefault(); box.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) callback(e.dataTransfer.files[0]); });
+        }
+
+        function speakText(text) {
+            if (!window.speechSynthesis) { showToast('⚠️ Trình duyệt không hỗ trợ phát âm.', 'error'); return; }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            speechSynthesis.speak(utterance);
+        }
+
+        // ===== HANDLE CHECK =====
+        async function handleCheck() {
+            const currentIdx = state.currentSentenceIndex;
+            if (!state.finalSegments.length) { showToast('⚠️ Chưa có dữ liệu câu.', 'error'); return; }
+            const seg = state.finalSegments[currentIdx];
+            if (!seg || !seg.transcript) { showToast('⚠️ Không có transcript cho câu này.', 'error'); return; }
+
+            const userText = $('userInput').value.trim();
+            if (!userText) { showToast('⚠️ Vui lòng nhập nội dung.', 'error'); return; }
+
+            if (!seg.ipa) {
+                seg.ipa = await IPA.getSentenceIPA(seg.transcript);
+            }
+
+            const result = TextCompare.compare(seg.transcript, userText);
+            $('resultOriginal').textContent = seg.transcript;
+            if (seg.start !== undefined) {
+                $('resultTime').textContent = `⏱️ ${formatTime(seg.start)} - ${formatTime(seg.end)}`;
+            } else {
+                $('resultTime').textContent = '⏱️ —';
+            }
+            $('resultUser').textContent = userText;
+            $('resultComparison').innerHTML = TextCompare.renderTokens(result.aligned);
+            $('resultScore').textContent = `✅ Điểm: ${result.accuracy}% (${result.aligned.filter(t => t.status === 'correct').length}/${result.aligned.filter(t => t.status !== 'extra').length} từ đúng)`;
+            $('resultIPA').textContent = `🔊 IPA: ${seg.ipa || '—'}`;
+
+            // Hiện result
+            document.getElementById('resultArea').className = 'result-area visible-result';
+
+            seg.status = result.accuracy >= 90 ? 'done' : 'fail';
+            seg.userInput = userText;
+
+            const el = document.querySelector(`.s-item[data-index="${currentIdx}"]`);
+            if (el) { el.className = `s-item ${seg.status} active`; }
+
+            const segs = state.finalSegments;
+            const done = segs.filter(s => s.status === 'done' || s.status === 'fail').length;
+            const pct = segs.length ? Math.round((done / segs.length) * 100) : 0;
+            $('progressFill').style.width = pct + '%';
+            $('progressText').textContent = `${pct}% (${done}/${segs.length})`;
+
+            if (result.accuracy === 100) showToast('🎉 Hoàn hảo!', 'success');
+            else if (result.accuracy >= 80) showToast(`👍 Khá tốt! ${result.accuracy}%`, 'info');
+            else showToast(`📖 Cần cải thiện: ${result.accuracy}%`, 'info');
+
+            saveSession();
+        }
+
+        function handleHint() {
+            const seg = state.finalSegments[state.currentSentenceIndex];
+            if (!seg || !seg.transcript) { showToast('⚠️ Không có transcript.', 'error'); return; }
+            const words = seg.transcript.split(/\s+/);
+            const userWords = $('userInput').value.trim().split(/\s+/);
+            if (userWords.length < words.length) {
+                const nextWord = words[userWords.length] || words[0];
+                $('userInput').value = ($('userInput').value + ' ' + nextWord).trim();
+                showToast(`💡 Gợi ý: "${nextWord}"`, 'info');
+            } else {
+                showToast('💡 Bạn đã nhập đủ từ.', 'info');
+            }
+        }
+
+        function handleExport() {
+            const segs = state.finalSegments;
+            if (!segs.length) { showToast('⚠️ Không có dữ liệu.', 'error'); return; }
+            let text = '📢 DICTATION REPORT\n';
+            text += `📅 ${new Date().toLocaleString()}\n`;
+            text += `🎵 ${state.audioFile ? state.audioFile.name : 'N/A'}\n`;
+            text += `📄 Tổng số câu: ${segs.length}\n`;
+            text += '═'.repeat(50) + '\n\n';
+
+            let totalAcc = 0, doneCount = 0;
+            segs.forEach((s, i) => {
+                const status = s.status === 'done' ? '✅' : s.status === 'fail' ? '❌' : '⏳';
+                const acc = s.transcript ? TextCompare.compare(s.transcript, s.userInput || '').accuracy : 0;
+                if (s.status === 'done' || s.status === 'fail') { totalAcc += acc; doneCount++; }
+                const timeStr = formatTime(s.start);
+                text += `Câu ${i+1} [${timeStr}]: ${status}  |  Độ chính xác: ${acc}%\n`;
+                text += `  Gốc: ${s.transcript || '—'}\n`;
+                text += `  Bạn: ${s.userInput || '—'}\n`;
+                text += `  IPA: ${s.ipa || '—'}\n\n`;
+            });
+            const avg = doneCount ? Math.round(totalAcc / doneCount) : 0;
+            text += `═'.repeat(50)\n`;
+            text += `📊 Điểm trung bình: ${avg}% (${doneCount}/${segs.length} câu hoàn thành)\n`;
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `dictation_report_${new Date().toISOString().slice(0,10)}.txt`;
+            link.click();
+            showToast('✅ Đã xuất báo cáo!', 'success');
+        }
+
+        async function saveSession() {
+            const segs = state.finalSegments;
+            if (!segs.length) return;
+            const completed = segs.filter(s => s.status === 'done' || s.status === 'fail');
+            const totalCorrect = segs.filter(s => s.status === 'done').length;
+            const accuracy = segs.length ? Math.round((totalCorrect / segs.length) * 100) : 0;
+            const session = {
+                id: 'session_' + Date.now(),
+                audioId: state.audioFile ? state.audioFile.name : 'unknown',
+                date: new Date().toISOString(),
+                totalSentences: segs.length,
+                completedSentences: completed.length,
+                averageAccuracy: accuracy,
+                details: segs.map((s, i) => ({
+                    sentenceIndex: i,
+                    transcript: s.transcript || '',
+                    userInput: s.userInput || '',
+                    accuracy: s.transcript ? TextCompare.compare(s.transcript, s.userInput || '').accuracy : 0,
+                    status: s.status || 'pending',
+                    start: s.start,
+                    end: s.end
+                }))
+            };
+            try { await Storage.put('sessions', session); } catch (e) { /* ignore */ }
+            $('sessionInfo').textContent = `📊 ĐTB: ${accuracy}% (${completed.length}/${segs.length} câu)`;
+        }
+
+        // ===== UI UPDATE =====
+        function updateUIList() {
+            let html = '';
+            state.finalSegments.forEach((s, i) => {
+                const timeStr = (s.start !== undefined) ? formatTime(s.start) : '--:--';
+                const label = s.transcript ? s.transcript.slice(0, 35) + (s.transcript.length > 35 ? '...' : '') : `Đoạn ${i+1}`;
+                const statusClass = s.status === 'done' ? 'done' : s.status === 'fail' ? 'fail' : 'pending';
+                const activeClass = i === state.currentSentenceIndex ? 'active' : '';
+                html += `<span class="s-item ${statusClass} ${activeClass}" data-index="${i}">
+                    <span class="time">[${timeStr}]</span>
+                    <span class="text">${label}</span>
+                </span>`;
+            });
+            $('sentenceList').innerHTML = html || '<span class="text-muted">Chưa có câu nào.</span>';
+            document.querySelectorAll('.s-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const idx = parseInt(el.dataset.index);
+                    clearInputAndHideResult();
+                    Player.setCurrentSegment(idx);
+                    Player.play();
+                });
+            });
+            updateActiveSentenceItem();
+        }
+
+        function updateActiveSentenceItem() {
+            const idx = state.currentSentenceIndex;
+            document.querySelectorAll('.s-item').forEach(el => {
+                el.classList.remove('active');
+                if (parseInt(el.dataset.index) === idx) {
+                    el.classList.add('active');
+                    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            });
+            const seg = state.finalSegments[idx];
+            if (seg) {
+                $('resultOriginal').textContent = seg.transcript;
+                if (seg.start !== undefined) {
+                    $('resultTime').textContent = `⏱️ ${formatTime(seg.start)} - ${formatTime(seg.end)}`;
+                } else {
+                    $('resultTime').textContent = '⏱️ —';
+                }
+                $('resultIPA').textContent = `🔊 IPA: ${seg.ipa || '—'}`;
+            }
+            $('sentenceCounter').textContent = `Câu ${idx + 1} / ${state.finalSegments.length}`;
+        }
+
+        function drawWaveform(buffer, segments = []) {
+            const canvas = $('waveformCanvas'); const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth; const h = canvas.height = canvas.clientHeight;
+            ctx.fillStyle = 'var(--surface2)'; ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = 'var(--text2)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+            const data = AudioProcessor.getWaveformData(buffer, Math.min(buffer.length, w * 2));
+            const step = Math.max(1, Math.floor(data.length / w));
+            ctx.strokeStyle = 'var(--primary)'; ctx.lineWidth = 2; ctx.beginPath();
+            for (let i = 0; i < w; i++) {
+                const val = data[i * step] || 0;
+                const x = i;
+                const y = h/2 - val * h * 0.4;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            const dur = buffer.duration;
+            if (dur > 0 && segments.length) {
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                segments.forEach(seg => {
+                    if (seg.start !== undefined) {
+                        const x = (seg.start / dur) * w;
+                        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+                    }
+                });
+                ctx.setLineDash([]);
+            }
+            $('waveformSentences').textContent = `📄 ${segments.length} câu`;
+        }
+
+        // ---- START ----
+        document.addEventListener('DOMContentLoaded', init);
+    })();
+</script>
+</body>
+</html>
